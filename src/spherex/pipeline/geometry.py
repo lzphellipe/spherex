@@ -1,6 +1,7 @@
 """WCS, conversões de coordenadas e reprojeção (astropy + scipy)."""
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
@@ -26,9 +27,15 @@ def make_wcs_header(ra: float, dec: float, shape: tuple[int, int], pixel_scale_a
 
 
 def to_wcs(header: dict[str, Any]) -> WCS:
-    keys = {k: v for k, v in header.items() if not k.startswith("NAXIS") or k in ("NAXIS1", "NAXIS2")}
-    w = WCS(keys, naxis=2)
-    return w
+    """WCS a partir do dict; cacheado porque construir WCS (com SIP) é caro e repetido."""
+    items = tuple(sorted((k, v) for k, v in header.items()
+                         if not k.startswith("NAXIS") or k in ("NAXIS1", "NAXIS2")))
+    return _wcs_cached(items)
+
+
+@lru_cache(maxsize=512)
+def _wcs_cached(items: tuple) -> WCS:
+    return WCS(dict(items), naxis=2)
 
 
 def world_to_pixel(header: dict[str, Any], ra: np.ndarray, dec: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

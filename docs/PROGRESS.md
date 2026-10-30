@@ -9,11 +9,12 @@
 - Modelo: CNN real/bogus + baseline, split por campo, retomada após SIGTERM.
 - Avaliação: completude por magnitude e taxa (IC de Wilson), magnitude limite logística (IC bootstrap),
   precisão top-K, ECE, limite de ordem de grandeza para corpos distantes.
-- 29 testes offline + 2 de rede; demo reprodutível em ~15 s.
+- 32 testes offline + 2 de rede; demo reprodutível em ~15 s.
+- Adapter IRSA conferido contra a documentação oficial (SIA v2, cutouts IBE, TAP); ver docs/dados.md.
 
 ## Pendente (por prioridade)
 
-1. Rodar `make test-network` e corrigir o que divergir em `docs/dados.md`.
+1. Rodar `make test-network`: confirmar a WCS espectral "W", os bits de FLAGS e os parâmetros do JPL (itens ⚠️ em `docs/dados.md`).
 2. Escolher 2–3 campos reais perto da eclíptica com asteroides conhecidos; baixar e cachear.
 3. Medir PSF e ponto zero reais por campo (hoje vêm da config).
 4. Caso de validação real distante (ex.: Makemake), se houver cobertura.

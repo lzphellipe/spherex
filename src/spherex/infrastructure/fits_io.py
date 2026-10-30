@@ -5,14 +5,24 @@ from pathlib import Path
 
 import numpy as np
 from astropy.io import fits
+from astropy.wcs import WCS
 
 from spherex.domain.models import Exposure
 from spherex.infrastructure.checkpoint import atomic_write
 
-WCS_KEYS = ("CTYPE1", "CTYPE2", "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2",
-            "CD1_1", "CD1_2", "CD2_1", "CD2_2", "CDELT1", "CDELT2", "PC1_1", "PC1_2",
-            "PC2_1", "PC2_2", "CUNIT1", "CUNIT2", "NAXIS1", "NAXIS2", "LONPOLE", "LATPOLE",
-            "RADESYS", "EQUINOX", "A_ORDER", "B_ORDER")
+
+def celestial_header(h: fits.Header) -> dict:
+    """WCS celeste completo (inclui distorção SIP), não só as palavras-chave básicas.
+
+    Copiar só CRVAL/CD/CTYPE descartaria os coeficientes SIP e erraria posições
+    na borda do detector justamente onde os objetos entram e saem do campo.
+    """
+    hdr = WCS(h, naxis=2, relax=True).to_header(relax=True)
+    out = {k: hdr[k] for k in hdr}
+    for k in ("WCSAXES", "DATE-OBS", "MJD-OBS", "DATEREF", "MJDREF"):
+        out.pop(k, None)
+    out["NAXIS1"], out["NAXIS2"] = int(h["NAXIS1"]), int(h["NAXIS2"])
+    return out
 
 
 def write_exposure(exp: Exposure, path: Path) -> None:
@@ -36,8 +46,7 @@ def read_exposure(path: Path) -> Exposure:
     with fits.open(path, memmap=False) as hdul:
         img_hdu = hdul["IMAGE"]
         h = img_hdu.header
-        wcs_header = {k: h[k] for k in WCS_KEYS if k in h}
-        wcs_header["NAXIS1"], wcs_header["NAXIS2"] = h["NAXIS1"], h["NAXIS2"]
+        wcs_header = celestial_header(h)
         mask = hdul["FLAGS"].data.astype(bool) if "FLAGS" in hdul else None
         return Exposure(id=h["EXPID"], field_id=h["FIELDID"], mjd=float(h["MJD-OBS"]),
                         detector=h.get("DETECTOR", "?"), wavelength_um=float(h["WAVELEN"]),

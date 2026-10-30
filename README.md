@@ -33,7 +33,7 @@ Com dados reais (`--source irsa`), as métricas são recalculadas do zero.
 
 ```bash
 make install          # pip install -e ".[dev]"
-make test             # 29 testes offline
+make test             # 32 testes offline
 spherex demo          # detect → train → eval no céu sintético
 spherex serve         # API + UI de revisão em http://127.0.0.1:8000
 spherex worker        # executa jobs que a API enfileira
