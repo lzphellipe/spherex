@@ -1,0 +1,75 @@
+# Configuração padrão. Tudo que afeta resultado entra aqui e no config_hash.
+seed: 42
+
+paths:
+  data_raw: data/raw
+  data_cache: data/cache
+  data_processed: data/processed
+  checkpoints: artifacts/checkpoints
+  ledger: artifacts/ledger/work.db
+  reports: artifacts/reports
+  review_db: artifacts/ledger/review.db
+
+# Fonte de dados: "synthetic" (offline, para testes e demo) ou "irsa" (real)
+source: synthetic
+
+# Campos do céu (centro RA/Dec em graus, raio em graus). Escolher campos com
+# asteroides conhecidos para ter positivos gratuitos.
+fields:
+  - id: field_001
+    ra: 150.0
+    dec: 2.0
+    radius_deg: 0.08
+
+synthetic:
+  n_fields: 8
+  n_epochs: 5
+  shape: [128, 128]
+  pixel_scale_arcsec: 6.15     # resolução espacial nominal do SPHEREx
+  n_stars: 120
+  n_movers: 6
+  mover_rate_arcsec_per_day: [12.0, 50.0]
+  mover_mag: [15.0, 18.5]
+  star_mag: [12.0, 19.0]
+  psf_sigma_px: 1.2
+  noise_sigma: 4.0
+  zeropoint: 25.0
+  epoch_spacing_days: 1.0
+  wavelength_um: [1.10, 1.12, 1.30, 1.11, 1.10]   # por época; a 3ª tem banda diferente de propósito
+  spectral_slope_range: [-3.0, 3.0]          # cor das estrelas (lei de potência em λ)
+
+preprocess:
+  band_tolerance_um: 0.03      # só compara exposições com comprimento de onda central próximo
+  background_box: 32
+
+detection:
+  threshold_sigma: 5.0
+  npixels: 4
+  static_match_arcsec: 8.0
+
+linking:
+  min_detections: 3
+  max_rate_arcsec_per_day: 60.0
+  match_radius_arcsec: 8.0
+
+stamps:
+  size: 21
+
+model:
+  epochs: 25
+  batch_size: 64
+  lr: 0.001
+  keep_last: 3
+  metric: val_auc
+
+injection:
+  n_per_field: 15
+  mag: [15.0, 21.0]
+  rate_arcsec_per_day: [1.0, 50.0]
+
+evaluation:
+  rate_floor_arcsec_per_day: 4.0   # abaixo disso o objeto se autossubtrai no cadenciamento atual
+  planet_x_h_mag: 0.0              # magnitude absoluta hipotética (ordem de grandeza)
+
+backup:
+  remote: null                 # ex.: "backup:spherex" (rclone); null desativa cópia remota

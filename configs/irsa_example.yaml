@@ -1,0 +1,11 @@
+# Exemplo para dados reais: spherex detect --source irsa -c configs/irsa_example.yaml
+# Escolha campos perto da eclíptica (mais asteroides conhecidos = mais positivos gratuitos).
+source: irsa
+zeropoint: 25.0          # calibre por campo com fotometria AllWISE antes de confiar na completude
+fields:
+  - id: ecl_001
+    ra: 180.0
+    dec: -0.5
+    radius_deg: 0.08
+injection:
+  n_per_field: 15

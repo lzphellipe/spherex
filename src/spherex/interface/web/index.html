@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPHEREx Moving Objects</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--fg:#1d1d1b;--muted:#6b6a64;--line:#e2e0d8;--accent:#185fa5;--ok:#3b6d11;--bad:#a32d2d;--warn:#854f0b}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--card:#21211f;--fg:#ecebe6;--muted:#a3a198;--line:#34332f;--accent:#85b7eb;--ok:#97c459;--bad:#f09595;--warn:#ef9f27}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;font-weight:500;margin:0}.warn{font-size:13px;color:var(--warn)}
+main{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px;padding:16px}
+@media (max-width:760px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.tabs button,.labels button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+.tabs button.on{border-color:var(--accent);color:var(--accent)}
+ul{list-style:none;margin:8px 0 0;padding:0;max-height:70vh;overflow:auto}
+li{padding:8px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+li:hover,li.sel{background:var(--bg)}.muted{color:var(--muted);font-size:13px}
+.stamps{display:grid;grid-template-columns:repeat(3,auto);gap:6px;justify-content:start;margin:8px 0}
+canvas{width:84px;height:84px;image-rendering:pixelated;border-radius:4px;border:1px solid var(--line)}
+.labels{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.labels input{padding:6px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--fg)}
+.err{color:var(--bad);font-size:13px;min-height:1em}pre{white-space:pre-wrap;font-size:12px;color:var(--muted)}
+img{max-width:100%;border-radius:8px}table{border-collapse:collapse;font-size:13px}td{padding:2px 8px 2px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPHEREx Moving Objects</h1>
+  <span class="warn">Candidatos para revisão humana. Este sistema não detecta nem identifica o Planeta X.</span>
+</header>
+<main>
+  <section class="card">
+    <div class="tabs"><button data-m="queue" class="on">Fila (incerteza)</button> <button data-m="top">Maior score</button> <button data-m="metrics">Métricas</button></div>
+    <ul id="list"></ul>
+  </section>
+  <section class="card" id="detail"><p class="muted">Selecione um candidato.</p></section>
+</main>
+<script>
+const $=s=>document.querySelector(s);let mode="queue",current=null;
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function api(p,o){const r=await fetch(p,o);if(!r.ok)throw new Error((await r.json().catch(()=>({detail:r.status}))).detail);return r.json()}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));b.classList.add("on");mode=b.dataset.m;mode==="metrics"?metrics():load()});
+async function load(){const ul=$("#list");ul.innerHTML="";let rows=[];try{rows=await api(`/candidates?mode=${mode}&limit=100`)}catch(e){ul.innerHTML=`<li class="muted">${esc(e.message)}</li>`;return}
+ if(!rows.length){ul.innerHTML='<li class="muted">Nada na fila. Rode <code>spherex eval</code>.</li>';return}
+ for(const c of rows){const li=document.createElement("li");li.innerHTML=`<span>${esc(c.id)}<br><span class="muted">${esc(c.field_id)} · ${c.n} épocas · ${c.rate.toFixed(1)}″/dia</span></span><span>${c.score.toFixed(2)}</span>`;li.onclick=()=>{document.querySelectorAll("li").forEach(x=>x.classList.remove("sel"));li.classList.add("sel");show(c.id)};ul.appendChild(li)}}
+function draw(cv,a){const n=a.length,ctx=cv.getContext("2d");cv.width=n;cv.height=n;const flat=a.flat(),lo=Math.min(...flat),hi=Math.max(...flat),img=ctx.createImageData(n,n);
+ for(let y=0;y<n;y++)for(let x=0;x<n;x++){const v=Math.round(255*(a[y][x]-lo)/((hi-lo)||1)),i=4*(y*n+x);img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255}ctx.putImageData(img,0,0)}
+async function show(id){current=id;const d=$("#detail");let c;try{c=await api(`/candidates/${encodeURIComponent(id)}`)}catch(e){d.innerHTML=`<p class="err">${esc(e.message)}</p>`;return}
+ d.innerHTML=`<h2 style="font-size:16px;font-weight:500;margin:0">${esc(c.id)}</h2>
+ <p class="muted">score ${c.score.toFixed(3)} · taxa ${c.rate.toFixed(2)}″/dia · RMS ${c.rms.toFixed(2)}″ · consenso: ${esc(c.consensus||"pendente")}${c.matched_known?` · corresponde a ${esc(c.matched_known)}`:""}</p>
+ <div class="muted">referência · science · diferença (por época)</div><div class="stamps" id="st"></div>
+ <div class="labels"><input id="rev" placeholder="seu nome" maxlength="64">
+ <button data-l="real">Objeto real</button><button data-l="artifact">Artefato</button><button data-l="star">Estrela</button></div>
+ <div class="err" id="lerr"></div><pre>${esc(JSON.stringify(c.provenance,null,2))}</pre>`;
+ for(const s of c.stamps)for(const ch of s){const cv=document.createElement("canvas");draw(cv,ch);$("#st").appendChild(cv)}
+ try{$("#rev").value=localStorage.getItem("reviewer")||""}catch(e){}
+ $("#rev").oninput=()=>{$("#lerr").textContent=""};
+ d.querySelectorAll(".labels button").forEach(b=>b.onclick=async()=>{const r=$("#rev").value.trim();if(!r){$("#lerr").textContent="Informe seu nome antes de rotular.";return}
+  try{localStorage.setItem("reviewer",r)}catch(e){}
+  try{await api(`/candidates/${encodeURIComponent(current)}/labels`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reviewer:r,label:b.dataset.l})});show(current);if(mode==="queue")load()}catch(e){$("#lerr").textContent=e.message}})}
+async function metrics(){$("#list").innerHTML="";const d=$("#detail");let m;try{m=await api("/metrics")}catch(e){d.innerHTML=`<p class="err">${esc(e.message)}</p>`;return}
+ const lim=m.mag_at_50pct_completeness,px=m.planet_x_limit;
+ d.innerHTML=`<h2 style="font-size:16px;font-weight:500;margin:0">Métricas medidas</h2><p class="warn">${esc(m.disclaimer)}</p>
+ <table><tr><td>Candidatos</td><td>${m.n_candidates}</td></tr><tr><td>Precisão top-10</td><td>${(m.precision_at_10*100).toFixed(0)}%</td></tr>
+ <tr><td>Conhecidos recuperados</td><td>${m.known_objects.recovered} / ${m.known_objects.observable}</td></tr>
+ <tr><td>Injeções recuperadas</td><td>${m.injections.recovered_after_classifier} / ${m.injections.observable}</td></tr>
+ <tr><td>Magnitude a 50% (taxa ≥ ${m.mag_limit_rate_floor_arcsec_per_day}″/dia)</td><td>${lim?`${lim.mag.toFixed(2)} [${lim.ci95.map(v=>v?.toFixed(2)).join(", ")}]`:"—"}</td></tr>
+ <tr><td>Calibração (ECE)</td><td>${m.calibration.ece.toFixed(3)}</td></tr>
+ <tr><td>Distância máx. p/ H=${px?px.H:"—"}</td><td>${px?`~${px.r_max_au.toFixed(0)} au (${esc(px.note)})`:"—"}</td></tr></table>
+ <p><img src="${esc(m.completeness_png)}" alt="Curvas de completude por magnitude e por taxa, com intervalos de 95%"></p>`}
+load();
+</script>
+</body>
+</html>
